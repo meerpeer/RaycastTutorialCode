@@ -5,7 +5,7 @@ const WINDOW_WIDTH = TILE_SIZE * MAP_NUM_COLS;
 const WINDOW_HEIGHT = TILE_SIZE * MAP_NUM_ROWS;
 
 const FOV_ANGLE = 60 * (Math.PI / 180);
-const WALL_STRIP_WIDTH = 3; // using this to make the collumns of pixels a bit thicker
+const WALL_STRIP_WIDTH = 10; // using this to make the collumns of pixels a bit thicker
 const NUM_RAYS = WINDOW_WIDTH / WALL_STRIP_WIDTH;
 
 const MINI_MAP_SCALE_FACTOR = 0.2;
@@ -106,7 +106,7 @@ class Ray {
 		this.isRayFacingRight = this.rayAngle < 0.5 * Math.PI || this.rayAngle > 1.5 * Math.PI;
 		this.isRayFacingLeft = !this.isRayFacingRight;
 	}
-	cast(columnId) {
+	cast() {
 		var xintercept, yintercept;
 		var xstep, ystep;
 		
@@ -206,10 +206,17 @@ class Ray {
 			: Number.MAX_VALUE);
 		
 		// Only store the smallest distances
-		this.wallHitX = (horzHitDistance < vertHitDistance) ? horWallHitX : vertWallHitX;
-		this.wallHitY = (horzHitDistance < vertHitDistance) ? horWallHitY : vertWallHitY;
-		this.distance = (horzHitDistance < vertHitDistance) ? horzHitDistance : vertHitDistance;
-		this.wasHitVertical = (vertHitDistance < horzHitDistance)
+		if (vertHitDistance < horzHitDistance) {
+			this.wallHitX = vertWallHitX;
+			this.wallHitY = vertWallHitY;
+			this.distance = vertHitDistance;
+			this.wasHitVertical = true;
+		} else {
+			this.wallHitX = horWallHitX;
+			this.wallHitY = horWallHitY;
+			this.distance = horzHitDistance;
+			this.wasHitVertical = false;
+		}
 	}
 	render() {
 		stroke("rgba(255,0,0,0.3)");
@@ -253,21 +260,18 @@ function keyReleased(){
 }
 
 function castAllRays() {
-	var columnId = 0;
-
 	// start first ray subtracting half of FOV
 	var rayAngle = player.rotationAngle - (FOV_ANGLE / 2);
 
 	rays = [];
 	
 	//loop all columns casting the rays
-	for (var i = 0; i< NUM_RAYS; i++){
+	for (var col = 0; col < NUM_RAYS; col++){
 	//for (var i = 0; i< 1; i++){ //only 1 ray for visualisation
 		var ray = new Ray(rayAngle);
-		ray.cast(columnId);
+		ray.cast();
 		rays.push(ray);
 		rayAngle += FOV_ANGLE / NUM_RAYS;
-		columnId++;
 	}
 
 }
@@ -291,9 +295,12 @@ function render3DProjectedWalls(){
 		// projected Wall height
 		var wallStripHeight = (TILE_SIZE / CorrectWallDistance) * distanceProjectionPlane;
 
-		// compute transparency based on wall distance
-		var alpha = 170/ CorrectWallDistance;
-		fill("rgba(255,255,255, "+ alpha +")");
+		// mist effect: compute transparency based on wall distance
+		var alpha =  230 / CorrectWallDistance;
+
+		var colorIntensity = ray.wasHitVertical ? 255 : 180;
+
+		fill("rgba("+ colorIntensity +","+ colorIntensity +","+ colorIntensity +","+ alpha +")");
 		noStroke();
 		rect(
 			i * WALL_STRIP_WIDTH,
